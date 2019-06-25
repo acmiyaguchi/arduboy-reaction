@@ -1,6 +1,8 @@
 #include <Arduboy2.h>
 #include <qrcode.h>
 
+// Deary-Liewald Task
+
 Arduboy2 arduboy;
 
 class QR {
@@ -30,7 +32,7 @@ class QR {
         break;
       // offset from the center by half the width of the QR code
       case Position::center:
-        x_off = 64 - 15;
+        x_off = 64 - 29;
         break;
     }
 
@@ -50,12 +52,46 @@ class QR {
 };
 
 QR qr;
+const uint8_t MAX_DATA = 5;
+char const* data[MAX_DATA] = {
+    "one fish", "two fish", "red fish", "blue fish", "fin",
+};
+uint8_t page = 0;
+bool dirty = true;
 
 void setup() {
   arduboy.begin();
-  qr.draw_left("hello world");
-  qr.draw_right("tuna fish");
+  arduboy.setFrameRate(60);
   arduboy.display();
 }
 
-void loop() {}
+void loop() {
+  if (!arduboy.nextFrame()) {
+    return;
+  }
+
+  arduboy.pollButtons();
+  if (arduboy.justPressed(LEFT_BUTTON)) {
+    if (page > 0) {
+      page--;
+    }
+    dirty = true;
+  } else if (arduboy.justPressed(RIGHT_BUTTON)) {
+    if (page < MAX_DATA / 2) {
+      page++;
+    }
+    dirty = true;
+  }
+
+  if (dirty) {
+    arduboy.clear();
+    if (page == 2) {
+      qr.draw_center(data[2 * page]);
+    } else {
+      qr.draw_left(data[2 * page]);
+      qr.draw_right(data[2 * page + 1]);
+    }
+    arduboy.display();
+    dirty = false;
+  }
+}
