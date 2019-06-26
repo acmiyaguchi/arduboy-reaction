@@ -2,6 +2,7 @@
 #include <qrcode.h>
 
 // Deary-Liewald Task
+// https://www.psytoolkit.org/experiment-library/deary_liewald.html
 
 class QR {
  private:
@@ -92,18 +93,97 @@ class QRExporter {
   }
 };
 
+class Block {
+ private:
+  Arduboy2& _arduboy;
+  bool _is_target;
+
+ public:
+  Block(Arduboy2& arduboy, bool is_target = false)
+      : _arduboy(arduboy), _is_target(is_target) {}
+  bool set(bool state) { _is_target = state; }
+  bool get() { return _is_target; }
+  void draw(int x, int y, int len) {
+    _arduboy.fillRect(x, y, len, len, WHITE);
+    if (_is_target) {
+      _arduboy.drawLine(x, y, x + len, y + len, BLACK);
+      _arduboy.drawLine(x + len, y, x, y + len, BLACK);
+    }
+  }
+};
+
+class Timer {
+ private:
+  Arduboy2& arduboy;
+  Block** blocks;
+  const uint8_t LEN = 25;
+  uint8_t pos;
+  uint8_t size;
+
+ public:
+  Timer(Arduboy2& arduboy, uint8_t size) : arduboy(arduboy), size(size) {
+    blocks = new Block*[size];
+    for (int i = 0; i < size; i++) {
+      blocks[i] = new Block(arduboy);
+    }
+    reset();
+  }
+
+  ~Timer() {
+    for (int i = 0; i < size; i++) {
+      delete blocks[i];
+    }
+    delete blocks;
+  }
+
+  void reset() {
+    blocks[pos]->set(false);
+    pos = random(0, size);
+    blocks[pos]->set(true);
+  }
+
+  void draw() {
+    // half the size of the border
+    int offset = (WIDTH - 32 * size) >> 1;
+    int border = 32 - LEN;
+    for (int i = 0; i < size; i++) {
+      blocks[i]->draw(offset + (32 * i), 32 - border, LEN);
+    }
+    arduboy.display();
+  }
+};
+
 Arduboy2 arduboy;
 QRExporter qrexporter(arduboy);
+Timer timer(arduboy, 4);
+uint8_t step = 0;
 
 void setup() {
   arduboy.begin();
   arduboy.setFrameRate(60);
-  arduboy.display();
 }
 
 void loop() {
   if (!arduboy.nextFrame()) {
     return;
   }
-  qrexporter.execute();
+
+  if (step == 0) {
+    arduboy.clear();
+    arduboy.print("press A to randomize");
+    arduboy.display();
+    arduboy.pollButtons();
+    if (arduboy.justPressed(B_BUTTON)) {
+      step++;
+      timer.reset();
+    }
+    return;
+  }
+
+  arduboy.pollButtons();
+  if (arduboy.justPressed(B_BUTTON)) {
+    step++;
+    timer.reset();
+  }
+  timer.draw();
 }
