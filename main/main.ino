@@ -112,6 +112,10 @@ class Block {
   }
 };
 
+struct Data {
+  uint16_t elapsed;
+};
+
 class Timer {
  private:
   Arduboy2& arduboy;
@@ -126,7 +130,7 @@ class Timer {
     for (int i = 0; i < size; i++) {
       blocks[i] = new Block(arduboy);
     }
-    reset();
+    pos = 0;
   }
 
   ~Timer() {
@@ -136,8 +140,10 @@ class Timer {
     delete blocks;
   }
 
+  void clear() { blocks[pos]->set(false); }
+
   void reset() {
-    blocks[pos]->set(false);
+    clear();
     pos = random(0, size);
     blocks[pos]->set(true);
   }
@@ -151,16 +157,41 @@ class Timer {
     }
     arduboy.display();
   }
+
+  Data execute() {
+    Data result;
+
+    clear();
+    draw();
+    delay(random(0, 3000));
+    reset();
+    draw();
+
+    unsigned long start = millis();
+    do {
+      if (arduboy.pressed(B_BUTTON)) {
+        result.elapsed = millis() - start;
+        break;
+      }
+    } while (true);
+
+    arduboy.clear();
+    clear();
+    draw();
+    return result;
+  }
 };
 
 Arduboy2 arduboy;
 QRExporter qrexporter(arduboy);
 Timer timer(arduboy, 4);
 uint8_t step = 0;
+int sum = 0;
+char buffer[20];
 
 void setup() {
   arduboy.begin();
-  arduboy.setFrameRate(60);
+  arduboy.setFrameRate(200);
 }
 
 void loop() {
@@ -171,19 +202,47 @@ void loop() {
   if (step == 0) {
     arduboy.clear();
     arduboy.print("press A to randomize");
+    timer.draw();
     arduboy.display();
     arduboy.pollButtons();
     if (arduboy.justPressed(B_BUTTON)) {
       step++;
-      timer.reset();
+      arduboy.clear();
+      arduboy.display();
     }
-    return;
-  }
+  } else if (step == 1) {
+    for (int trial = 0; trial < 5; trial++) {
+      auto data = timer.execute();
+      sum += data.elapsed;
+      arduboy.setCursor(0, 0);
+      memset(buffer, 0, 20);
+      snprintf(buffer, 20, "reaction: %i ms", data.elapsed);
+      arduboy.print(buffer);
+      arduboy.display();
+    }
 
-  arduboy.pollButtons();
-  if (arduboy.justPressed(B_BUTTON)) {
+    arduboy.clear();
+    arduboy.setCursor(0, 0);
+    arduboy.println("avg. reaction time:");
+    memset(buffer, 0, 20);
+    snprintf(buffer, 20, "%i ms", sum / 5);
+    arduboy.print("    ");
+    arduboy.println(buffer);
+    arduboy.println("");
+    arduboy.println("press A to reset");
+    arduboy.println("press B to export");
+    arduboy.display();
     step++;
-    timer.reset();
+  } else if (step == 2) {
+    arduboy.pollButtons();
+    if (arduboy.justPressed(A_BUTTON)) {
+      arduboy.clear();
+      QR qr(arduboy);
+      qr.draw_center(buffer);
+      arduboy.display();
+    } else if (arduboy.justPressed(B_BUTTON)) {
+      sum = 0;
+      step = 0;
+    }
   }
-  timer.draw();
 }
