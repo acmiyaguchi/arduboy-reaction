@@ -194,6 +194,20 @@ void setup() {
   arduboy.setFrameRate(200);
 }
 
+void display_result(int sum) {
+  arduboy.clear();
+  arduboy.setCursor(0, 0);
+  arduboy.println("avg. reaction time:");
+  memset(buffer, 0, 20);
+  snprintf(buffer, 20, "%i ms", sum / 5);
+  arduboy.print("    ");
+  arduboy.println(buffer);
+  arduboy.println("");
+  arduboy.println("press A to reset");
+  arduboy.println("press B to export");
+  arduboy.display();
+}
+
 void loop() {
   if (!arduboy.nextFrame()) {
     return;
@@ -221,17 +235,7 @@ void loop() {
       arduboy.display();
     }
 
-    arduboy.clear();
-    arduboy.setCursor(0, 0);
-    arduboy.println("avg. reaction time:");
-    memset(buffer, 0, 20);
-    snprintf(buffer, 20, "%i ms", sum / 5);
-    arduboy.print("    ");
-    arduboy.println(buffer);
-    arduboy.println("");
-    arduboy.println("press A to reset");
-    arduboy.println("press B to export");
-    arduboy.display();
+    display_result(sum);
     step++;
   } else if (step == 2) {
     arduboy.pollButtons();
